@@ -1,0 +1,88 @@
+server:
+  port: ${APIGATEWAY_PORT:8080}
+  http2:
+    enabled: false
+    max-http-request-header-size: 65536
+
+jwt:
+  secret: ${JWT_SECRET_KEY}
+
+spring:
+  application:
+    name: ${APIGATEWAY_NAME:mmb-apigateway}
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+  cloud:
+    discovery:
+      enabled: false
+    config:
+      enabled: false
+    gateway:
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 10
+            redis-rate-limiter.burstCapacity: 20
+            key-resolver: "#{@customKeyResolver}"
+      routes:
+        - id: mmb-answer-service
+          uri: http://mmb-answer-service:${ANSWER_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/answers, /api/v1/answers/**, /api/v1/questions/*/answers
+
+        - id: mmb-question-service
+          uri: http://mmb-question-service:${QUESTION_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/questions, /api/v1/questions/**
+
+        - id: mmb-member-service
+          uri: http://mmb-member-service:${MEMBER_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/members, /api/v1/members/**
+
+        - id: mmb-auth-service
+          uri: http://mmb-auth-service:${AUTH_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/auth/**, /api/v1/oauth2/**, /login/oauth2/**
+
+        - id: mmb-chat-service
+          uri: http://mmb-chat-service:${CHAT_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/chat/**
+
+        - id: mmb-chat-service-ws
+          uri: ws://mmb-chat-service:${CHAT_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/ws/chat, /api/v1/ws/chat/**
+          filters:
+            - RewritePath=/api/v1/ws/chat(?<segment>/?.*), /ws/chat${segment}
+
+        - id: mmb-notification-service
+          uri: http://mmb-notification-service:${NOTIFICATION_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/notification/**
+
+        - id: mmb-notification-service-ws
+          uri: ws://mmb-notification-service:${NOTIFICATION_SERVICE_PORT}
+          predicates:
+            - Path=/api/v1/ws/notification, /api/v1/ws/notification/**
+          filters:
+            - RewritePath=/api/v1/ws/notification(?<segment>/?.*), /ws/notification${segment}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  %-5level --- [%X{APPLICATION_NAME}] [traceId=%X{traceId:-}, spanId=%X{spanId:-}] %logger{36} : %msg%n"
+  level:
+    com.mumulbo.gateway: debug
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://${ZIPKIN_HOST}:${CONTAINER_ZIPKIN_PORT}/api/v2/spans

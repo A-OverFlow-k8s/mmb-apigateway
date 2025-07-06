@@ -5,7 +5,6 @@ WORKDIR /home/gradle/app
 # Gradle 설정 복사 및 실행 권한 부여
 COPY ./src/main/resources/*.yml ./
 COPY build.gradle settings.gradle ./
-#COPY gradle gradle
 
 # 종속성 캐시 생성
 RUN gradle dependencies --no-daemon || true
@@ -23,4 +22,4 @@ FROM amazoncorretto:21-alpine
 COPY --from=builder /home/gradle/app/build/libs/*.jar /app/apigateway.jar
 
 # 애플리케이션 실행
-ENTRYPOINT ["java", "-jar", "/app/apigateway.jar"]
+ENTRYPOINT ["java", "-jar", "/app/apigateway.jar", "--spring.profiles.active=k8s"]
